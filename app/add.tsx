@@ -25,9 +25,9 @@ export default function AddEntry() {
     const getLabels = () => {
         switch (category) {
             case 'Alcohol':
-                return { amount: 'Units (Drinks)', type: 'Type (Beer, Wine, etc.)' };
+                return { amount: null, type: 'Name' };
             case 'Tobacco':
-                return { amount: 'Amount (Packs/Grams)', type: 'Type (Brand)' };
+                return { amount: null, type: 'Type (Brand)' };
             case 'Other':
                 return { amount: 'Amount', type: 'Type' };
             case 'Weed':
@@ -37,16 +37,25 @@ export default function AddEntry() {
     };
 
     const handleSaveFavorite = async () => {
-        if (!amountSpent || !grams || !source || !type) {
+        // Validation
+        if (!amountSpent || !type) {
             Alert.alert('Error', 'Please fill in all required fields');
+            return;
+        }
+        if ((category === 'Weed' || category === 'Other') && !grams) {
+            Alert.alert('Error', 'Please enter the amount');
+            return;
+        }
+        if (category === 'Weed' && !source) {
+            Alert.alert('Error', 'Please enter the source');
             return;
         }
 
         try {
             await Storage.addFavorite({
-                amountSpent: parseFloat(amountSpent),
-                grams: parseFloat(grams),
-                source,
+                amountSpent: parseFloat(amountSpent.replace(',', '.')),
+                grams: grams ? parseFloat(grams.replace(',', '.')) : 0,
+                source: source || '',
                 type,
                 category: category!,
                 notes,
@@ -62,17 +71,26 @@ export default function AddEntry() {
     };
 
     const handleSave = async () => {
-        if (!amountSpent || !grams || !source || !type) {
+        // Validation
+        if (!amountSpent || !type) {
             Alert.alert('Error', 'Please fill in all required fields');
+            return;
+        }
+        if ((category === 'Weed' || category === 'Other') && !grams) {
+            Alert.alert('Error', 'Please enter the amount');
+            return;
+        }
+        if (category === 'Weed' && !source) {
+            Alert.alert('Error', 'Please enter the source');
             return;
         }
 
         try {
             await Storage.addEntry({
                 date: date.toISOString(),
-                amountSpent: parseFloat(amountSpent),
-                grams: parseFloat(grams),
-                source,
+                amountSpent: parseFloat(amountSpent.replace(',', '.')),
+                grams: grams ? parseFloat(grams.replace(',', '.')) : 0,
+                source: source || '',
                 type,
                 category: category!,
                 notes,
@@ -137,39 +155,30 @@ export default function AddEntry() {
             </View>
 
             <View style={styles.formGroup}>
-                <Text style={styles.label}>Amount Spent ($)</Text>
+                <Text style={styles.label}>Amount Spent (€)</Text>
                 <TextInput
                     style={styles.input}
-                    placeholder="0.00"
+                    placeholder="0,00 €"
                     placeholderTextColor={Colors.dark.textSecondary}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     value={amountSpent}
                     onChangeText={setAmountSpent}
                 />
             </View>
 
-            <View style={styles.formGroup}>
-                <Text style={styles.label}>{labels.amount}</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="0.0"
-                    placeholderTextColor={Colors.dark.textSecondary}
-                    keyboardType="numeric"
-                    value={grams}
-                    onChangeText={setGrams}
-                />
-            </View>
-
-            <View style={styles.formGroup}>
-                <Text style={styles.label}>Source (Where did you get it?)</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="e.g. Store, Friend, etc."
-                    placeholderTextColor={Colors.dark.textSecondary}
-                    value={source}
-                    onChangeText={setSource}
-                />
-            </View>
+            {labels.amount && (
+                <View style={styles.formGroup}>
+                    <Text style={styles.label}>{labels.amount}</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="0,0"
+                        placeholderTextColor={Colors.dark.textSecondary}
+                        keyboardType="decimal-pad"
+                        value={grams}
+                        onChangeText={setGrams}
+                    />
+                </View>
+            )}
 
             <View style={styles.formGroup}>
                 <Text style={styles.label}>{labels.type}</Text>
@@ -181,6 +190,19 @@ export default function AddEntry() {
                     onChangeText={setType}
                 />
             </View>
+
+            {category === 'Weed' && (
+                <View style={styles.formGroup}>
+                    <Text style={styles.label}>Source (Where did you get it?)</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="e.g. Store, Friend, etc."
+                        placeholderTextColor={Colors.dark.textSecondary}
+                        value={source}
+                        onChangeText={setSource}
+                    />
+                </View>
+            )}
 
             <View style={styles.formGroup}>
                 <Text style={styles.label}>Notes (Optional)</Text>

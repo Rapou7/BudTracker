@@ -5,11 +5,15 @@ import { Colors } from '../../constants/Colors';
 import { Storage, Entry } from '../../utils/storage';
 import Heatmap from '../../components/Heatmap';
 import HistoryItem from '../../components/HistoryItem';
+import DayDetailModal from '../../components/DayDetailModal';
 
 export default function Dashboard() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [favorites, setFavorites] = useState<Entry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDayEntries, setSelectedDayEntries] = useState<Entry[]>([]);
+  const [selectedPosition, setSelectedPosition] = useState<{ x: number; y: number } | null>(null);
 
   const loadData = async () => {
     const data = await Storage.getEntries();
@@ -33,7 +37,7 @@ export default function Dashboard() {
   const handleQuickAdd = (favorite: Entry) => {
     Alert.alert(
       'Quick Add',
-      `Add entry for ${favorite.amountSpent} (${favorite.grams}g)?`,
+      `Add entry for ${favorite.amountSpent.toFixed(2).replace('.', ',')} € (${favorite.grams}g)?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -78,7 +82,7 @@ export default function Dashboard() {
   };
 
   const totalSpent = entries.reduce((sum, e) => sum + e.amountSpent, 0);
-  const totalGrams = entries.reduce((sum, e) => sum + e.grams, 0);
+  const totalGrams = entries.filter(e => e.category === 'Weed').reduce((sum, e) => sum + e.grams, 0);
 
   const now = new Date();
   const firstEntryDate = entries.length > 0 ? new Date(entries[entries.length - 1].date) : now;
@@ -92,16 +96,16 @@ export default function Dashboard() {
       <View style={styles.statsRow}>
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Total Spent</Text>
-          <Text style={styles.cardValue}>${totalSpent.toFixed(2)}</Text>
+          <Text style={styles.cardValue}>{totalSpent.toFixed(2).replace('.', ',')} €</Text>
         </View>
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Total Grams</Text>
-          <Text style={styles.cardValue}>{totalGrams.toFixed(1)}g</Text>
+          <Text style={styles.cardValue}>{totalGrams.toFixed(1).replace('.', ',')}g</Text>
         </View>
       </View>
       <View style={styles.fullCard}>
         <Text style={styles.cardLabel}>Avg Monthly Spend</Text>
-        <Text style={styles.cardValue}>${avgMonthlySpend.toFixed(2)}</Text>
+        <Text style={styles.cardValue}>{avgMonthlySpend.toFixed(2).replace('.', ',')} €</Text>
       </View>
 
       {favorites.length > 0 && (
@@ -116,7 +120,7 @@ export default function Dashboard() {
                 onLongPress={() => handleRemoveFavorite(fav)}
               >
                 <Text style={styles.favoriteButtonText}>{fav.type}</Text>
-                <Text style={styles.favoriteButtonSubtext}>${fav.amountSpent}</Text>
+                <Text style={styles.favoriteButtonSubtext}>{fav.amountSpent.toFixed(2).replace('.', ',')} €</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -125,7 +129,15 @@ export default function Dashboard() {
 
       <Text style={styles.sectionTitle}>Activity Calendar</Text>
       <View style={styles.chartCard}>
-        <Heatmap entries={entries} numDays={91} />
+        <Heatmap
+          entries={entries}
+          numDays={91}
+          onDayPress={(date, dayEntries, position) => {
+            setSelectedDate(date);
+            setSelectedDayEntries(dayEntries);
+            setSelectedPosition(position);
+          }}
+        />
       </View>
 
       <Text style={styles.sectionTitle}>Recent History</Text>
@@ -160,6 +172,19 @@ export default function Dashboard() {
         ListEmptyComponent={
           <Text style={styles.emptyText}>No entries yet. Start tracking!</Text>
         }
+      />
+
+      <DayDetailModal
+        visible={selectedDate !== null}
+        date={selectedDate}
+        entries={selectedDayEntries}
+        position={selectedPosition}
+        onClose={() => {
+          setSelectedDate(null);
+          setSelectedDayEntries([]);
+          setSelectedPosition(null);
+        }}
+        onDeleteEntry={handleDelete}
       />
 
       <Link href="/add" asChild>

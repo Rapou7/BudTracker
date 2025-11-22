@@ -110,7 +110,7 @@ export default function StatsScreen() {
 
             {/* Main Chart */}
             <View style={styles.chartCard}>
-                <Text style={styles.chartTitle}>Total Spent: ${calculateTotal(period === '7d' ? 7 : period === '30d' ? 30 : 90).toFixed(2)}</Text>
+                <Text style={styles.chartTitle}>Total Spent: {calculateTotal(period === '7d' ? 7 : period === '30d' ? 30 : 90).toFixed(2).replace('.', ',')} €</Text>
                 <LineChart
                     data={chartData}
                     width={screenWidth - 40}
@@ -146,15 +146,15 @@ export default function StatsScreen() {
             <View style={styles.statsGrid}>
                 <View style={styles.statCard}>
                     <Text style={styles.statLabel}>7 Days</Text>
-                    <Text style={styles.statValue}>${calculateTotal(7).toFixed(0)}</Text>
+                    <Text style={styles.statValue}>{calculateTotal(7).toFixed(2).replace('.', ',')} €</Text>
                 </View>
                 <View style={styles.statCard}>
                     <Text style={styles.statLabel}>30 Days</Text>
-                    <Text style={styles.statValue}>${calculateTotal(30).toFixed(0)}</Text>
+                    <Text style={styles.statValue}>{calculateTotal(30).toFixed(2).replace('.', ',')} €</Text>
                 </View>
                 <View style={styles.statCard}>
                     <Text style={styles.statLabel}>90 Days</Text>
-                    <Text style={styles.statValue}>${calculateTotal(90).toFixed(0)}</Text>
+                    <Text style={styles.statValue}>{calculateTotal(90).toFixed(2).replace('.', ',')} €</Text>
                 </View>
             </View>
         </ScrollView>

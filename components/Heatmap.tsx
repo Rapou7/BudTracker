@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Dimensions } from 'react-native';
+import { View, Dimensions, TouchableOpacity } from 'react-native';
 import Svg, { Rect, G, Text as SvgText } from 'react-native-svg';
 import { Colors } from '../constants/Colors';
 
@@ -7,9 +7,10 @@ interface HeatmapProps {
     entries: { date: string; amountSpent: number }[];
     numDays?: number;
     endDate?: Date;
+    onDayPress?: (date: Date, dayEntries: any[], position: { x: number; y: number }) => void;
 }
 
-export default function Heatmap({ entries, numDays = 91, endDate = new Date() }: HeatmapProps) {
+export default function Heatmap({ entries, numDays = 91, endDate = new Date(), onDayPress }: HeatmapProps) {
     const screenWidth = Dimensions.get('window').width;
     const gutter = 4;
     const padding = 64; // Total horizontal padding (Screen padding 32 + Card padding 32)
@@ -29,13 +30,17 @@ export default function Heatmap({ entries, numDays = 91, endDate = new Date() }:
     const cellSize = (availableWidth - (numWeeks - 1) * gutter) / numWeeks;
 
     const { cells, maxSpend } = useMemo(() => {
-        const data: { [key: string]: number } = {};
+        const data: { [key: string]: { amount: number; entries: any[] } } = {};
         let max = 0;
 
         entries.forEach(e => {
             const dateStr = e.date.split('T')[0];
-            data[dateStr] = (data[dateStr] || 0) + e.amountSpent;
-            if (data[dateStr] > max) max = data[dateStr];
+            if (!data[dateStr]) {
+                data[dateStr] = { amount: 0, entries: [] };
+            }
+            data[dateStr].amount += e.amountSpent;
+            data[dateStr].entries.push(e);
+            if (data[dateStr].amount > max) max = data[dateStr].amount;
         });
 
         const result = [];
@@ -44,12 +49,13 @@ export default function Heatmap({ entries, numDays = 91, endDate = new Date() }:
             const d = new Date(endDate);
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
-            const amount = data[dateStr] || 0;
+            const dayData = data[dateStr] || { amount: 0, entries: [] };
 
             result.push({
                 date: d,
-                amount,
-                intensity: max > 0 ? amount / max : 0,
+                amount: dayData.amount,
+                entries: dayData.entries,
+                intensity: max > 0 ? dayData.amount / max : 0,
             });
         }
         return { cells: result, maxSpend: max };
@@ -73,7 +79,7 @@ export default function Heatmap({ entries, numDays = 91, endDate = new Date() }:
     const height = 7 * (cellSize + gutter) - gutter;
 
     return (
-        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             <Svg width={width} height={height}>
                 {gridCells.map((cell, index) => {
                     let fill = Colors.dark.surface;
@@ -102,6 +108,31 @@ export default function Heatmap({ entries, numDays = 91, endDate = new Date() }:
                     );
                 })}
             </Svg>
+            {/* Overlay touchable areas */}
+            <View style={{ position: 'absolute', width, height }}>
+                {gridCells.map((cell, index) => (
+                    <TouchableOpacity
+                        key={index}
+                        style={{
+                            position: 'absolute',
+                            left: cell.x,
+                            top: cell.y,
+                            width: cellSize,
+                            height: cellSize,
+                        }}
+                        onPress={(e) => {
+                            if (onDayPress) {
+                                // Use pageX/pageY for absolute screen coordinates
+                                onDayPress(cell.date, cell.entries, {
+                                    x: e.nativeEvent.pageX - (cellSize / 2),
+                                    y: e.nativeEvent.pageY - (cellSize / 2)
+                                });
+                            }
+                        }}
+                        activeOpacity={0.7}
+                    />
+                ))}
+            </View>
         </View>
     );
 }

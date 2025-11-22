@@ -103,8 +103,10 @@ export default function HistoryItem({ item, onDelete }: HistoryItemProps) {
                         <Text style={styles.itemDate}>{new Date(item.date).toLocaleDateString()}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.itemPrice}>${item.amountSpent.toFixed(2)}</Text>
-                        <Text style={styles.itemGrams}>{item.grams}g</Text>
+                        <Text style={styles.itemPrice}>{item.amountSpent.toFixed(2).replace('.', ',')} €</Text>
+                        {item.category === 'Weed' && (
+                            <Text style={styles.itemGrams}>{item.grams}g</Text>
+                        )}
                     </View>
                 </View>
             </Swipeable>
