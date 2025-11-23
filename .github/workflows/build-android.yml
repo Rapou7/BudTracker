@@ -1,4 +1,4 @@
-name: iOS-ipa-build
+name: Android-apk-build
 on:
   workflow_dispatch:
     inputs:
@@ -9,9 +9,9 @@ on:
 permissions:
   contents: write
 jobs:
-  build-ios:
-    name: 🎉 iOS Build
-    runs-on: macos-latest
+  build-android:
+    name: 🤖 Android Build
+    runs-on: ubuntu-latest
     steps:
       - name: 🏗 Checkout code
         uses: actions/checkout@v4
@@ -46,48 +46,48 @@ jobs:
           node-version: 20.x
           cache: npm
       
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: 🔧 Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
       - name: 📦 Install dependencies
         run: npm install
       
       - name: ⚙️ Prebuild (Generate Native Code)
-        run: npx expo prebuild --platform ios --no-install
+        run: npx expo prebuild --platform android --no-install
       
-      - name: 📦 Update CocoaPods repo
-        run: pod repo update
-        working-directory: ios
-      
-      - name: 📦 Install Pods
-        run: pod install
-        working-directory: ios
-      
-      - name: 🔨 Build iOS (No Code Sign)
+      - name: 🔨 Build Android APK
         run: |
-          xcodebuild -workspace ios/YonkiStats.xcworkspace \
-            -scheme YonkiStats \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath ios/build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease
       
-      - name: 📁 Create Payload directory
-        run: mkdir Payload
-        working-directory: ios/build/Build/Products/Release-iphoneos
+      - name: 🔍 Find APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found APK at: $APK_PATH"
       
-      - name: 📦 Move app to Payload
-        run: mv YonkiStats.app/ Payload
-        working-directory: ios/build/Build/Products/Release-iphoneos
-      
-      - name: 🤐 Zip IPA
-        run: zip -qq -r -9 YonkiStats-v${{ steps.version.outputs.version }}.ipa Payload
-        working-directory: ios/build/Build/Products/Release-iphoneos
+      - name: 📝 Rename APK
+        run: |
+          APK_PATH="${{ steps.find_apk.outputs.apk_path }}"
+          NEW_NAME="YonkiStats-v${{ steps.version.outputs.version }}.apk"
+          cp "$APK_PATH" "$NEW_NAME"
+          echo "new_apk_path=$NEW_NAME" >> $GITHUB_OUTPUT
+        id: rename
       
       - name: 📤 Upload to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ios/build/Build/Products/Release-iphoneos/YonkiStats-v${{ steps.version.outputs.version }}.ipa
+          file: ${{ steps.rename.outputs.new_apk_path }}
           tag: v${{ steps.version.outputs.version }}
           overwrite: true
           make_latest: true
-          body: "Unsigned iOS build v${{ steps.version.outputs.version }} for sideloading"
+          body: "Unsigned Android build v${{ steps.version.outputs.version }} for sideloading"
