@@ -37,6 +37,17 @@ export const Storage = {
         }
     },
 
+    async updateEntry(entry: Entry): Promise<void> {
+        try {
+            const entries = await this.getEntries();
+            const updatedEntries = entries.map(e => e.id === entry.id ? entry : e);
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedEntries));
+        } catch (e) {
+            console.error('Failed to update entry', e);
+            throw e;
+        }
+    },
+
     async removeEntry(id: string): Promise<void> {
         try {
             const entries = await this.getEntries();

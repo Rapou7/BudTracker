@@ -1,11 +1,13 @@
 name: iOS-ipa-build
-
 on:
   workflow_dispatch:
-
+    inputs:
+      version:
+        description: 'Version number (leave empty for auto-increment)'
+        required: false
+        type: string
 permissions:
   contents: write
-
 jobs:
   build-ios:
     name: 🎉 iOS Build
@@ -13,27 +15,51 @@ jobs:
     steps:
       - name: 🏗 Checkout code
         uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0
+      
+      - name: 🔢 Determine version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Get the latest tag, or use 1.0.0 if no tags exist
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+            # Remove 'v' prefix if present
+            LATEST_TAG=${LATEST_TAG#v}
+            # Split version into parts
+            IFS='.' read -r -a VERSION_PARTS <<< "$LATEST_TAG"
+            MAJOR=${VERSION_PARTS[0]:-1}
+            MINOR=${VERSION_PARTS[1]:-0}
+            PATCH=${VERSION_PARTS[2]:-0}
+            # Increment patch version
+            PATCH=$((PATCH + 1))
+            VERSION="$MAJOR.$MINOR.$PATCH"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+      
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
           cache: npm
-
+      
       - name: 📦 Install dependencies
         run: npm install
-
+      
       - name: ⚙️ Prebuild (Generate Native Code)
         run: npx expo prebuild --platform ios --no-install
-
+      
       - name: 📦 Update CocoaPods repo
         run: pod repo update
         working-directory: ios
-
+      
       - name: 📦 Install Pods
         run: pod install
         working-directory: ios
-
+      
       - name: 🔨 Build iOS (No Code Sign)
         run: |
           xcodebuild -workspace ios/BudTracker.xcworkspace \
@@ -43,25 +69,25 @@ jobs:
             -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
-
+      
       - name: 📁 Create Payload directory
         run: mkdir Payload
         working-directory: ios/build/Build/Products/Release-iphoneos
-
+      
       - name: 📦 Move app to Payload
         run: mv BudTracker.app/ Payload
         working-directory: ios/build/Build/Products/Release-iphoneos
-
+      
       - name: 🤐 Zip IPA
-        run: zip -qq -r -9 BudTracker.ipa Payload
+        run: zip -qq -r -9 BudTracker-v${{ steps.version.outputs.version }}.ipa Payload
         working-directory: ios/build/Build/Products/Release-iphoneos
-
+      
       - name: 📤 Upload to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ios/build/Build/Products/Release-iphoneos/BudTracker.ipa
-          tag: v1.0
+          file: ios/build/Build/Products/Release-iphoneos/BudTracker-v${{ steps.version.outputs.version }}.ipa
+          tag: v${{ steps.version.outputs.version }}
           overwrite: true
           make_latest: true
-          body: "Unsigned iOS build for sideloading"
+          body: "Unsigned iOS build v${{ steps.version.outputs.version }} for sideloading"

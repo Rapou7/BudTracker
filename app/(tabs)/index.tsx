@@ -1,19 +1,26 @@
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Dimensions, Alert, Animated } from 'react-native';
-import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { Link, useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState, useRef } from 'react';
 import { Colors } from '../../constants/Colors';
 import { Storage, Entry } from '../../utils/storage';
 import Heatmap from '../../components/Heatmap';
 import HistoryItem from '../../components/HistoryItem';
 import DayDetailModal from '../../components/DayDetailModal';
+import { FadeInView } from '../../components/FadeInView';
+import { StaggeredFadeInView } from '../../components/StaggeredFadeInView';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [favorites, setFavorites] = useState<Entry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDayEntries, setSelectedDayEntries] = useState<Entry[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<{ x: number; y: number } | null>(null);
+
+  // Animation control
+  const [viewKey, setViewKey] = useState(0);
+  const isNavigatingInternal = useRef(false);
 
   const loadData = async () => {
     const data = await Storage.getEntries();
@@ -24,6 +31,14 @@ export default function Dashboard() {
 
   useFocusEffect(
     useCallback(() => {
+      // If we are NOT returning from an internal navigation (like Add/Edit),
+      // we assume it's a tab switch or initial load, so we trigger animation.
+      if (!isNavigatingInternal.current) {
+        setViewKey(k => k + 1);
+      }
+      // Reset the flag
+      isNavigatingInternal.current = false;
+
       loadData();
     }, [])
   );
@@ -49,7 +64,6 @@ export default function Dashboard() {
                 date: new Date().toISOString(),
               });
               await loadData();
-              Alert.alert('Success', 'Entry added!');
             } catch (e) {
               Alert.alert('Error', 'Failed to add entry');
             }
@@ -89,58 +103,74 @@ export default function Dashboard() {
   const monthsDiff = (now.getFullYear() - firstEntryDate.getFullYear()) * 12 + (now.getMonth() - firstEntryDate.getMonth()) + 1;
   const avgMonthlySpend = totalSpent / (monthsDiff || 1);
 
-  const renderHeader = () => (
+  const headerComponent = (
     <View style={styles.headerContainer}>
-      <Text style={styles.greeting}>Welcome Back</Text>
+      <StaggeredFadeInView key={`greet-${viewKey}`} delay={0}>
+        <Text style={styles.greeting}>Welcome Back</Text>
+      </StaggeredFadeInView>
 
-      <View style={styles.statsRow}>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Total Spent</Text>
-          <Text style={styles.cardValue}>{totalSpent.toFixed(2).replace('.', ',')} €</Text>
+      <StaggeredFadeInView key={`stats-${viewKey}`} delay={50}>
+        <View style={styles.statsRow}>
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Total Spent</Text>
+            <Text style={styles.cardValue}>{totalSpent.toFixed(2).replace('.', ',')} €</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Total Grams</Text>
+            <Text style={styles.cardValue}>{totalGrams.toFixed(1).replace('.', ',')}g</Text>
+          </View>
         </View>
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Total Grams</Text>
-          <Text style={styles.cardValue}>{totalGrams.toFixed(1).replace('.', ',')}g</Text>
+      </StaggeredFadeInView>
+
+      <StaggeredFadeInView key={`avg-${viewKey}`} delay={100}>
+        <View style={styles.fullCard}>
+          <Text style={styles.cardLabel}>Avg Monthly Spend</Text>
+          <Text style={styles.cardValue}>{avgMonthlySpend.toFixed(2).replace('.', ',')} €</Text>
         </View>
-      </View>
-      <View style={styles.fullCard}>
-        <Text style={styles.cardLabel}>Avg Monthly Spend</Text>
-        <Text style={styles.cardValue}>{avgMonthlySpend.toFixed(2).replace('.', ',')} €</Text>
-      </View>
+      </StaggeredFadeInView>
 
       {favorites.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>Favorites</Text>
-          <View style={styles.favoritesContainer}>
-            {favorites.map((fav) => (
-              <TouchableOpacity
-                key={fav.id}
-                style={styles.favoriteButton}
-                onPress={() => handleQuickAdd(fav)}
-                onLongPress={() => handleRemoveFavorite(fav)}
-              >
-                <Text style={styles.favoriteButtonText}>{fav.type}</Text>
-                <Text style={styles.favoriteButtonSubtext}>{fav.amountSpent.toFixed(2).replace('.', ',')} €</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
+        <StaggeredFadeInView key={`favs-${viewKey}`} delay={150}>
+          <>
+            <Text style={styles.sectionTitle}>Favorites</Text>
+            <View style={styles.favoritesContainer}>
+              {favorites.map((fav) => (
+                <TouchableOpacity
+                  key={fav.id}
+                  style={styles.favoriteButton}
+                  onPress={() => handleQuickAdd(fav)}
+                  onLongPress={() => handleRemoveFavorite(fav)}
+                >
+                  <Text style={styles.favoriteButtonText}>{fav.type}</Text>
+                  <Text style={styles.favoriteButtonSubtext}>{fav.amountSpent.toFixed(2).replace('.', ',')} €</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        </StaggeredFadeInView>
       )}
 
-      <Text style={styles.sectionTitle}>Activity Calendar</Text>
-      <View style={styles.chartCard}>
-        <Heatmap
-          entries={entries}
-          numDays={91}
-          onDayPress={(date, dayEntries, position) => {
-            setSelectedDate(date);
-            setSelectedDayEntries(dayEntries);
-            setSelectedPosition(position);
-          }}
-        />
-      </View>
+      <StaggeredFadeInView key={`cal-title-${viewKey}`} delay={favorites.length > 0 ? 200 : 150}>
+        <Text style={styles.sectionTitle}>Activity Calendar</Text>
+      </StaggeredFadeInView>
 
-      <Text style={styles.sectionTitle}>Recent History</Text>
+      <StaggeredFadeInView key={`cal-${viewKey}`} delay={favorites.length > 0 ? 250 : 200}>
+        <View style={styles.chartCard}>
+          <Heatmap
+            entries={entries}
+            numDays={91}
+            onDayPress={(date, dayEntries, position) => {
+              setSelectedDate(date);
+              setSelectedDayEntries(dayEntries);
+              setSelectedPosition(position);
+            }}
+          />
+        </View>
+      </StaggeredFadeInView>
+
+      <StaggeredFadeInView key={`hist-title-${viewKey}`} delay={favorites.length > 0 ? 300 : 250}>
+        <Text style={styles.sectionTitle}>Recent History</Text>
+      </StaggeredFadeInView>
     </View>
   );
 
@@ -153,8 +183,21 @@ export default function Dashboard() {
     }
   };
 
+  const handleEditEntry = (entry: Entry) => {
+    // Close modal if open
+    setSelectedDate(null);
+    setSelectedDayEntries([]);
+    setSelectedPosition(null);
+
+    isNavigatingInternal.current = true;
+    router.push({
+      pathname: '/add',
+      params: { editEntry: JSON.stringify(entry) }
+    });
+  };
+
   const renderItem = ({ item }: { item: Entry }) => (
-    <HistoryItem item={item} onDelete={handleDelete} />
+    <HistoryItem item={item} onDelete={handleDelete} onPress={() => handleEditEntry(item)} />
   );
 
   return (
@@ -163,7 +206,7 @@ export default function Dashboard() {
         data={entries}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={headerComponent}
         contentContainerStyle={styles.listContent}
         contentInsetAdjustmentBehavior="automatic"
         refreshControl={
@@ -185,10 +228,17 @@ export default function Dashboard() {
           setSelectedPosition(null);
         }}
         onDeleteEntry={handleDelete}
+        onEditEntry={handleEditEntry}
       />
 
       <Link href="/add" asChild>
-        <TouchableOpacity style={styles.fab}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => {
+            isNavigatingInternal.current = true;
+            router.push('/add');
+          }}
+        >
           <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
       </Link>

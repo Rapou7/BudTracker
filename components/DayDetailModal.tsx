@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Animated, Alert, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Animated, Alert, Dimensions, TouchableHighlight } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
@@ -12,14 +12,16 @@ interface DayDetailModalProps {
     position?: { x: number; y: number } | null;
     onClose: () => void;
     onDeleteEntry: (id: string) => void;
+    onEditEntry: (entry: Entry) => void;
 }
 
 interface SwipeableEntryItemProps {
     entry: Entry;
     onDelete: (id: string) => void;
+    onPress: () => void;
 }
 
-function SwipeableEntryItem({ entry, onDelete }: SwipeableEntryItemProps) {
+function SwipeableEntryItem({ entry, onDelete, onPress }: SwipeableEntryItemProps) {
     const swipeableRef = useRef<Swipeable>(null);
     const rowHeight = useRef(new Animated.Value(1)).current;
     const opacity = useRef(new Animated.Value(1)).current;
@@ -29,19 +31,20 @@ function SwipeableEntryItem({ entry, onDelete }: SwipeableEntryItemProps) {
         dragX: Animated.AnimatedInterpolation<number>
     ) => {
         const trans = dragX.interpolate({
-            inputRange: [0, 50, 100, 101],
-            outputRange: [-20, 0, 0, 1],
+            inputRange: [-80, 0],
+            outputRange: [0, 80],
+            extrapolate: 'clamp',
         });
 
         return (
             <View style={styles.deleteAction}>
-                <Animated.Text
+                <Animated.View
                     style={{
                         transform: [{ translateX: trans }],
                     }}
                 >
                     <Ionicons name="trash" size={24} color="white" />
-                </Animated.Text>
+                </Animated.View>
             </View>
         );
     };
@@ -102,33 +105,40 @@ function SwipeableEntryItem({ entry, onDelete }: SwipeableEntryItemProps) {
                 rightThreshold={40}
                 containerStyle={styles.swipeableContainer}
             >
-                <View style={styles.entryItem}>
-                    <View style={styles.entryContent}>
-                        <View style={styles.entryHeader}>
-                            <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(entry.category) }]}>
-                                <Text style={styles.categoryText}>{entry.category}</Text>
+                <TouchableHighlight
+                    activeOpacity={0.6}
+                    underlayColor="#333333"
+                    onPress={onPress}
+                    style={{ borderRadius: 12 }}
+                >
+                    <View style={styles.entryItem}>
+                        <View style={styles.entryContent}>
+                            <View style={styles.entryHeader}>
+                                <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(entry.category) }]}>
+                                    <Text style={styles.categoryText}>{entry.category}</Text>
+                                </View>
+                                <Text style={styles.entryType} numberOfLines={1}>{entry.type}</Text>
                             </View>
-                            <Text style={styles.entryType} numberOfLines={1}>{entry.type}</Text>
-                        </View>
-                        <View style={styles.entryDetails}>
-                            <Text style={styles.entryAmount}>
-                                {entry.amountSpent.toFixed(2).replace('.', ',')} €
-                            </Text>
-                            {entry.category === 'Weed' && (
-                                <Text style={styles.entryGrams}>{entry.grams}g</Text>
+                            <View style={styles.entryDetails}>
+                                <Text style={styles.entryAmount}>
+                                    {entry.amountSpent.toFixed(2).replace('.', ',')} €
+                                </Text>
+                                {entry.category === 'Weed' && (
+                                    <Text style={styles.entryGrams}>{entry.grams}g</Text>
+                                )}
+                            </View>
+                            {entry.source && (
+                                <Text style={styles.entrySource} numberOfLines={1}>Source: {entry.source}</Text>
                             )}
                         </View>
-                        {entry.source && (
-                            <Text style={styles.entrySource} numberOfLines={1}>Source: {entry.source}</Text>
-                        )}
                     </View>
-                </View>
+                </TouchableHighlight>
             </Swipeable>
         </Animated.View>
     );
 }
 
-export default function DayDetailModal({ visible, date, entries, position, onClose, onDeleteEntry }: DayDetailModalProps) {
+export default function DayDetailModal({ visible, date, entries, position, onClose, onDeleteEntry, onEditEntry }: DayDetailModalProps) {
     const slideAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const [localEntries, setLocalEntries] = useState<Entry[]>(entries);
@@ -275,6 +285,7 @@ export default function DayDetailModal({ visible, date, entries, position, onClo
                                         key={entry.id}
                                         entry={entry}
                                         onDelete={handleDeleteEntry}
+                                        onPress={() => onEditEntry(entry)}
                                     />
                                 ))}
                             </ScrollView>

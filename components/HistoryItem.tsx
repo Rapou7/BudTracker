@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Alert } from 'react-native';
+import { View, Text, StyleSheet, Animated, Alert, TouchableHighlight } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
@@ -8,9 +8,10 @@ import { Entry } from '../utils/storage';
 interface HistoryItemProps {
     item: Entry;
     onDelete: (id: string) => void;
+    onPress: () => void;
 }
 
-export default function HistoryItem({ item, onDelete }: HistoryItemProps) {
+export default function HistoryItem({ item, onDelete, onPress }: HistoryItemProps) {
     const swipeableRef = useRef<Swipeable>(null);
     const rowHeight = useRef(new Animated.Value(1)).current;
     const opacity = useRef(new Animated.Value(1)).current;
@@ -20,19 +21,20 @@ export default function HistoryItem({ item, onDelete }: HistoryItemProps) {
         dragX: Animated.AnimatedInterpolation<number>
     ) => {
         const trans = dragX.interpolate({
-            inputRange: [0, 50, 100, 101],
-            outputRange: [-20, 0, 0, 1],
+            inputRange: [-80, 0],
+            outputRange: [0, 80],
+            extrapolate: 'clamp',
         });
 
         return (
             <View style={styles.deleteAction}>
-                <Animated.Text
+                <Animated.View
                     style={{
                         transform: [{ translateX: trans }],
                     }}
                 >
                     <Ionicons name="trash" size={24} color="white" />
-                </Animated.Text>
+                </Animated.View>
             </View>
         );
     };
@@ -95,20 +97,27 @@ export default function HistoryItem({ item, onDelete }: HistoryItemProps) {
                 rightThreshold={40}
                 containerStyle={styles.swipeableContainer}
             >
-                <View style={styles.item}>
-                    <View>
-                        <Text style={styles.itemCategory}>{item.category || 'Weed'}</Text>
-                        <Text style={styles.itemType}>{item.type}</Text>
-                        <Text style={styles.itemSource}>{item.source}</Text>
-                        <Text style={styles.itemDate}>{new Date(item.date).toLocaleDateString()}</Text>
+                <TouchableHighlight
+                    activeOpacity={0.6}
+                    underlayColor="#333333"
+                    onPress={onPress}
+                    style={{ borderRadius: 12 }}
+                >
+                    <View style={styles.item}>
+                        <View>
+                            <Text style={styles.itemCategory}>{item.category || 'Weed'}</Text>
+                            <Text style={styles.itemType}>{item.type}</Text>
+                            <Text style={styles.itemSource}>{item.source}</Text>
+                            <Text style={styles.itemDate}>{new Date(item.date).toLocaleDateString()}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.itemPrice}>{item.amountSpent.toFixed(2).replace('.', ',')} €</Text>
+                            {item.category === 'Weed' && (
+                                <Text style={styles.itemGrams}>{item.grams}g</Text>
+                            )}
+                        </View>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.itemPrice}>{item.amountSpent.toFixed(2).replace('.', ',')} €</Text>
-                        {item.category === 'Weed' && (
-                            <Text style={styles.itemGrams}>{item.grams}g</Text>
-                        )}
-                    </View>
-                </View>
+                </TouchableHighlight>
             </Swipeable>
         </Animated.View>
     );
