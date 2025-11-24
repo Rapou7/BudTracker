@@ -1,5 +1,5 @@
-import React, { useMemo, useEffect, useRef, useCallback } from 'react';
-import { View, Dimensions, TouchableOpacity, Animated } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { Dimensions, TouchableOpacity, View } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { CategoryColors } from '../constants/Colors';
 import { useThemeColor } from '../context/ThemeContext';
@@ -15,17 +15,14 @@ function getCategoryColor(category: string, primaryColor: string): string {
     return CategoryColors[category as keyof typeof CategoryColors] || primaryColor;
 }
 
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
-
-// Component for animated cell
-const AnimatedHeatmapCell = React.memo(({
+// Stateless heatmap cell: renders fill, and (optionally) secondary as stroke outline if two+ categories
+const HeatmapCell = React.memo(({
     x,
     y,
     cellSize,
     categories,
     intensity,
     primaryColor,
-    index
 }: {
     x: number;
     y: number;
@@ -33,41 +30,8 @@ const AnimatedHeatmapCell = React.memo(({
     categories: string[];
     intensity: number;
     primaryColor: string;
-    index: number;
 }) => {
-    const animatedValue = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        if (categories.length > 1) {
-            // Stagger the animation start based on index to create a wave effect
-            const delay = (index % 10) * 200;
-
-            const runAnimation = () => {
-                animatedValue.setValue(0);
-                Animated.sequence([
-                    Animated.delay(delay),
-                    Animated.timing(animatedValue, {
-                        toValue: categories.length,
-                        duration: categories.length * 2000, // 2 seconds per color
-                        useNativeDriver: false,
-                    }),
-                ]).start((result) => {
-                    if (result.finished) {
-                        runAnimation(); // Loop by calling recursively
-                    }
-                });
-            };
-
-            runAnimation();
-
-            return () => {
-                animatedValue.stopAnimation();
-            };
-        }
-    }, [categories.length, index]); // Removed animatedValue from deps as it's a ref
-
     if (categories.length === 0) {
-        // Empty cell
         return (
             <Rect
                 x={x}
@@ -82,10 +46,10 @@ const AnimatedHeatmapCell = React.memo(({
         );
     }
 
+    const fillColor = getCategoryColor(categories[0], primaryColor);
+    const opacity = 0.3 + (0.7 * intensity);
+
     if (categories.length === 1) {
-        // Single category - no animation
-        const color = getCategoryColor(categories[0], primaryColor);
-        const opacity = 0.3 + (0.7 * intensity);
         return (
             <Rect
                 x={x}
@@ -94,35 +58,43 @@ const AnimatedHeatmapCell = React.memo(({
                 height={cellSize}
                 rx={4}
                 ry={4}
-                fill={color}
+                fill={fillColor}
                 fillOpacity={opacity}
             />
         );
     }
 
-    // Multiple categories - animate between colors
-    const colors = categories.map(cat => getCategoryColor(cat, primaryColor));
-
-    // Create interpolation ranges
-    const inputRange = categories.map((_, i) => i);
-    const opacity = 0.3 + (0.7 * intensity);
-
-    const interpolatedColor = animatedValue.interpolate({
-        inputRange: [...inputRange, categories.length],
-        outputRange: [...colors, colors[0]], // Loop back to first color
-    });
+    // For two+ categories: draw primary as fill, secondary as inside outline (same opacity, same radius)
+    const strokeColor = getCategoryColor(categories[1], primaryColor);
+    const strokeWidth = 2;
+    const inset = strokeWidth / 2; // So stroke is fully inside
+    const outlineRadius = 4; // Matches main fill
 
     return (
-        <AnimatedRect
-            x={x}
-            y={y}
-            width={cellSize}
-            height={cellSize}
-            rx={4}
-            ry={4}
-            fill={interpolatedColor}
-            fillOpacity={opacity}
-        />
+        <>
+            <Rect
+                x={x}
+                y={y}
+                width={cellSize}
+                height={cellSize}
+                rx={4}
+                ry={4}
+                fill={fillColor}
+                fillOpacity={opacity}
+            />
+            <Rect
+                x={x + inset}
+                y={y + inset}
+                width={cellSize - strokeWidth}
+                height={cellSize - strokeWidth}
+                rx={outlineRadius}
+                ry={outlineRadius}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeOpacity={opacity}
+            />
+        </>
     );
 });
 
@@ -180,7 +152,7 @@ export default function Heatmap({ entries, numDays = 91, endDate = new Date(), o
             });
         }
         return { cells: result, maxSpend: max };
-    }, [entries, numDays, endDate]); // Removed unnecessary deps if endDate is stable, but keeping for safety
+    }, [entries, numDays, endDate]);
 
     const gridCells = useMemo(() => cells.map((cell, index) => {
         // Calculate column (week) and row (day of week) based on the start offset
@@ -212,7 +184,7 @@ export default function Heatmap({ entries, numDays = 91, endDate = new Date(), o
         <View style={{ alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             <Svg width={width} height={height}>
                 {gridCells.map((cell, index) => (
-                    <AnimatedHeatmapCell
+                    <HeatmapCell
                         key={index}
                         x={cell.x}
                         y={cell.y}
@@ -220,7 +192,6 @@ export default function Heatmap({ entries, numDays = 91, endDate = new Date(), o
                         categories={cell.categories}
                         intensity={cell.intensity}
                         primaryColor={primaryColor}
-                        index={index}
                     />
                 ))}
             </Svg>
@@ -244,4 +215,3 @@ export default function Heatmap({ entries, numDays = 91, endDate = new Date(), o
         </View>
     );
 }
-
