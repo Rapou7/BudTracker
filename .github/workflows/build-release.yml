@@ -10,26 +10,50 @@ permissions:
   contents: write
 jobs:
   version:
-    name: 🔢 Determine Version
+    name: 🔢 Determine Version & App Config
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      app_name: ${{ steps.config.outputs.app_name }}
+      app_slug: ${{ steps.config.outputs.app_slug }}
+      bundle_id: ${{ steps.config.outputs.bundle_id }}
+      branch_name: ${{ steps.config.outputs.branch_name }}
     steps:
       - name: 🏗 Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
       
-      - name: 🔢 Calculate version
+      - name: 🔧 Extract App Config from app.json
+        id: config
+        run: |
+          # Extract app name and slug from app.json
+          APP_NAME=$(node -p "require('./app.json').expo.name")
+          APP_SLUG=$(node -p "require('./app.json').expo.slug")
+          BUNDLE_ID=$(node -p "require('./app.json').expo.ios.bundleIdentifier")
+          BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | sed 's/[^a-zA-Z0-9._-]/-/g')
+          
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "app_slug=$APP_SLUG" >> $GITHUB_OUTPUT
+          echo "bundle_id=$BUNDLE_ID" >> $GITHUB_OUTPUT
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          
+          echo "� Building: $APP_NAME"
+          echo "🏷️  Slug: $APP_SLUG"
+          echo "🌿 Branch: $BRANCH_NAME"
+      
+      - name: �🔢 Calculate version
         id: version
         run: |
+          BRANCH="${{ steps.config.outputs.branch_name }}"
+          
           if [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
-            # Get the latest tag, or use 1.0.0 if no tags exist
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
-            # Remove 'v' prefix if present
-            LATEST_TAG=${LATEST_TAG#v}
+            # Get the latest tag for this branch, or use 1.0.0 if no tags exist
+            LATEST_TAG=$(git describe --tags --abbrev=0 --match "${BRANCH}-v*" 2>/dev/null || echo "${BRANCH}-v1.0.0")
+            # Remove branch prefix and 'v' prefix
+            LATEST_TAG=${LATEST_TAG#${BRANCH}-v}
             # Split version into parts
             IFS='.' read -r -a VERSION_PARTS <<< "$LATEST_TAG"
             MAJOR=${VERSION_PARTS[0]:-1}
@@ -40,10 +64,10 @@ jobs:
             VERSION="$MAJOR.$MINOR.$PATCH"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
+          echo "🔢 Version: $VERSION"
 
   build-android:
-    name: 🤖 Android Build
+    name: 🤖 Android Build (${{ needs.version.outputs.app_name }})
     needs: version
     runs-on: ubuntu-latest
     steps:
@@ -87,7 +111,7 @@ jobs:
       - name: 📝 Rename APK
         run: |
           APK_PATH="${{ steps.find_apk.outputs.apk_path }}"
-          NEW_NAME="YonkiStats-v${{ needs.version.outputs.version }}.apk"
+          NEW_NAME="${{ needs.version.outputs.app_name }}-v${{ needs.version.outputs.version }}.apk"
           cp "$APK_PATH" "$NEW_NAME"
           echo "new_apk_path=$NEW_NAME" >> $GITHUB_OUTPUT
         id: rename
@@ -100,7 +124,7 @@ jobs:
           retention-days: 1
 
   build-ios:
-    name: 🎉 iOS Build
+    name: � iOS Build (${{ needs.version.outputs.app_name }})
     needs: version
     runs-on: macos-latest
     steps:
@@ -129,8 +153,8 @@ jobs:
       
       - name: 🔨 Build iOS (No Code Sign)
         run: |
-          xcodebuild -workspace ios/YonkiStats.xcworkspace \
-            -scheme YonkiStats \
+          xcodebuild -workspace ios/${{ needs.version.outputs.app_name }}.xcworkspace \
+            -scheme ${{ needs.version.outputs.app_name }} \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath ios/build \
@@ -142,22 +166,22 @@ jobs:
         working-directory: ios/build/Build/Products/Release-iphoneos
       
       - name: 📦 Move app to Payload
-        run: mv YonkiStats.app/ Payload
+        run: mv ${{ needs.version.outputs.app_name }}.app/ Payload
         working-directory: ios/build/Build/Products/Release-iphoneos
       
       - name: 🤐 Zip IPA
-        run: zip -qq -r -9 YonkiStats-v${{ needs.version.outputs.version }}.ipa Payload
+        run: zip -qq -r -9 ${{ needs.version.outputs.app_name }}-v${{ needs.version.outputs.version }}.ipa Payload
         working-directory: ios/build/Build/Products/Release-iphoneos
       
       - name: 💾 Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: ios/build/Build/Products/Release-iphoneos/YonkiStats-v${{ needs.version.outputs.version }}.ipa
+          path: ios/build/Build/Products/Release-iphoneos/${{ needs.version.outputs.app_name }}-v${{ needs.version.outputs.version }}.ipa
           retention-days: 1
 
   release:
-    name: 📤 Create Release
+    name: 📤 Create Release (${{ needs.version.outputs.app_name }})
     needs: [version, build-android, build-ios]
     runs-on: ubuntu-latest
     steps:
@@ -174,18 +198,21 @@ jobs:
       - name: 📤 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ needs.version.outputs.version }}
-          name: Release v${{ needs.version.outputs.version }}
+          tag_name: ${{ needs.version.outputs.branch_name }}-v${{ needs.version.outputs.version }}
+          name: ${{ needs.version.outputs.app_name }} v${{ needs.version.outputs.version }}
           body: |
-            🎉 **YonkiStats v${{ needs.version.outputs.version }}**
+            🎉 **${{ needs.version.outputs.app_name }} v${{ needs.version.outputs.version }}**
             
             Unsigned builds for sideloading:
-            - 🤖 **Android**: YonkiStats-v${{ needs.version.outputs.version }}.apk
-            - 🍎 **iOS**: YonkiStats-v${{ needs.version.outputs.version }}.ipa
+            - 🤖 **Android**: ${{ needs.version.outputs.app_name }}-v${{ needs.version.outputs.version }}.apk
+            - 🍎 **iOS**: ${{ needs.version.outputs.app_name }}-v${{ needs.version.outputs.version }}.ipa
+            
+            **Branch**: `${{ needs.version.outputs.branch_name }}`
+            **Bundle ID**: `${{ needs.version.outputs.bundle_id }}`
             
             > **Note**: These are unsigned builds. iOS users will need to sign the IPA before installing.
           files: |
-            YonkiStats-v${{ needs.version.outputs.version }}.apk
-            YonkiStats-v${{ needs.version.outputs.version }}.ipa
+            ${{ needs.version.outputs.app_name }}-v${{ needs.version.outputs.version }}.apk
+            ${{ needs.version.outputs.app_name }}-v${{ needs.version.outputs.version }}.ipa
           draft: false
           prerelease: false
