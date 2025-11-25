@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "Yonki Stats",
-    "slug": "yonki-stats",
+    "name": "Cashtats",
+    "slug": "cashtats",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "yonkistats",
+    "scheme": "cashtats",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rapou7.yonkistats",
+      "bundleIdentifier": "com.rapou7.cashtats",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.rapou7.yonkistats",
+      "package": "com.rapou7.cashtats",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

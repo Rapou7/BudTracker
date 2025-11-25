@@ -110,7 +110,7 @@ export default function HistoryItem({ item, onDelete, onPress }: HistoryItemProp
                     <View>
                         <View style={[styles.item, item.notes ? { paddingBottom: 4 } : null]}>
                             <View>
-                                <Text style={[styles.itemCategory, { color: primaryColor }]}>{i18n.t(`categories.${item.category || 'Weed'}`)}</Text>
+                                <Text style={[styles.itemCategory, { color: primaryColor }]}>{i18n.t(`categories.${item.category || 'Other'}`)}</Text>
                                 <Text style={styles.itemType}>{item.type}</Text>
                                 {item.source && (
                                     <Text style={styles.itemSource}>{i18n.t('common.source')}: {item.source}</Text>
@@ -119,9 +119,7 @@ export default function HistoryItem({ item, onDelete, onPress }: HistoryItemProp
                             </View>
                             <View style={{ alignItems: 'flex-end' }}>
                                 <Text style={[styles.itemPrice, { color: primaryColor }]}>{item.amountSpent.toFixed(2).replace('.', ',')} €</Text>
-                                {item.category === 'Weed' && (
-                                    <Text style={styles.itemGrams}>{item.grams}g</Text>
-                                )}
+
                             </View>
                         </View>
                         {item.notes && (

@@ -4,10 +4,10 @@ export interface Entry {
     id: string;
     date: string;
     amountSpent: number;
-    grams: number;
+    grams?: number; // Optional for legacy data
     source: string;
     type: string;
-    category: 'Alcohol' | 'Tobacco' | 'Weed' | 'Food' | 'Other';
+    category: 'Food' | 'Transportation' | 'Shopping' | 'Entertainment' | 'Other';
     notes?: string;
 }
 
@@ -134,7 +134,7 @@ export const Storage = {
                     typeof entry.grams === 'number' &&
                     typeof entry.source === 'string' &&
                     typeof entry.type === 'string' &&
-                    ['Alcohol', 'Tobacco', 'Weed', 'Food', 'Other'].includes(entry.category)
+                    ['Food', 'Transportation', 'Shopping', 'Entertainment', 'Other'].includes(entry.category)
                 );
             };
 

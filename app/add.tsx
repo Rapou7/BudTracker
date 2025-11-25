@@ -14,10 +14,10 @@ export default function AddEntry() {
     const { i18n, language } = useLanguage();
     const { primaryColor } = useThemeColor();
     const params = useLocalSearchParams();
-    const [category, setCategory] = useState<'Alcohol' | 'Tobacco' | 'Weed' | 'Food' | 'Other' | null>(null);
+    const [category, setCategory] = useState<'Food' | 'Transportation' | 'Shopping' | 'Entertainment' | 'Other' | null>(null);
     const [step, setStep] = useState<'category' | 'form'>('category');
     const [amountSpent, setAmountSpent] = useState('');
-    const [grams, setGrams] = useState('');
+
     const [source, setSource] = useState('');
     const [type, setType] = useState('');
     const [notes, setNotes] = useState('');
@@ -36,7 +36,7 @@ export default function AddEntry() {
                 setCategory(entry.category);
                 setStep('form');
                 setAmountSpent(entry.amountSpent.toString().replace('.', ','));
-                setGrams(entry.grams ? entry.grams.toString().replace('.', ',') : '');
+
                 setSource(entry.source || '');
                 setType(entry.type);
                 setNotes(entry.notes || '');
@@ -110,7 +110,7 @@ export default function AddEntry() {
         })
     ).current;
 
-    const handleCategorySelect = useCallback((selectedCategory: 'Alcohol' | 'Tobacco' | 'Weed' | 'Food' | 'Other') => {
+    const handleCategorySelect = useCallback((selectedCategory: 'Food' | 'Transportation' | 'Shopping' | 'Entertainment' | 'Other') => {
         setCategory(selectedCategory);
         setStep('form');
         // Animate slide to the left
@@ -122,20 +122,8 @@ export default function AddEntry() {
     }, [slideAnim]);
 
     const getLabels = useCallback(() => {
-        switch (category) {
-            case 'Alcohol':
-                return { amount: null, type: i18n.t('addEntry.name') };
-            case 'Tobacco':
-                return { amount: null, type: i18n.t('addEntry.typeBrand') };
-            case 'Food':
-                return { amount: null, type: i18n.t('addEntry.name') };
-            case 'Other':
-                return { amount: null, type: i18n.t('addEntry.name') };
-            case 'Weed':
-            default:
-                return { amount: i18n.t('addEntry.grams'), type: i18n.t('addEntry.typeStrain') };
-        }
-    }, [category, i18n]);
+        return { type: i18n.t('addEntry.itemName') };
+    }, [i18n]);
 
     const handleSaveFavorite = useCallback(async () => {
         // Validation
@@ -143,19 +131,11 @@ export default function AddEntry() {
             Alert.alert(i18n.t('common.error'), i18n.t('addEntry.requiredFields'));
             return;
         }
-        if (category === 'Weed' && !grams) {
-            Alert.alert(i18n.t('common.error'), i18n.t('addEntry.enterAmount'));
-            return;
-        }
-        if ((category === 'Weed' || category === 'Food') && !source) {
-            Alert.alert(i18n.t('common.error'), i18n.t('addEntry.enterSource'));
-            return;
-        }
+
 
         try {
             await Storage.addFavorite({
                 amountSpent: parseFloat(amountSpent.replace(',', '.')),
-                grams: grams ? parseFloat(grams.replace(',', '.')) : 0,
                 source: source || '',
                 type,
                 category: category!,
@@ -169,7 +149,7 @@ export default function AddEntry() {
                 Alert.alert(i18n.t('common.error'), i18n.t('addEntry.failedSaveFavorite'));
             }
         }
-    }, [amountSpent, type, category, grams, source, notes, i18n]);
+    }, [amountSpent, type, category, source, notes, i18n]);
 
     const handleSave = useCallback(async () => {
         // Validation
@@ -177,14 +157,7 @@ export default function AddEntry() {
             Alert.alert(i18n.t('common.error'), i18n.t('addEntry.requiredFields'));
             return;
         }
-        if (category === 'Weed' && !grams) {
-            Alert.alert(i18n.t('common.error'), i18n.t('addEntry.enterAmount'));
-            return;
-        }
-        if ((category === 'Weed' || category === 'Food') && !source) {
-            Alert.alert(i18n.t('common.error'), i18n.t('addEntry.enterSource'));
-            return;
-        }
+
 
         try {
             if (editingId) {
@@ -192,7 +165,6 @@ export default function AddEntry() {
                     id: editingId,
                     date: date.toISOString(),
                     amountSpent: parseFloat(amountSpent.replace(',', '.')),
-                    grams: grams ? parseFloat(grams.replace(',', '.')) : 0,
                     source: source || '',
                     type,
                     category: category!,
@@ -202,7 +174,6 @@ export default function AddEntry() {
                 await Storage.addEntry({
                     date: date.toISOString(),
                     amountSpent: parseFloat(amountSpent.replace(',', '.')),
-                    grams: grams ? parseFloat(grams.replace(',', '.')) : 0,
                     source: source || '',
                     type,
                     category: category!,
@@ -213,7 +184,7 @@ export default function AddEntry() {
         } catch (e) {
             Alert.alert(i18n.t('common.error'), i18n.t('addEntry.failedSaveEntry'));
         }
-    }, [amountSpent, type, category, grams, source, notes, date, editingId, i18n, router]);
+    }, [amountSpent, type, category, source, notes, date, editingId, i18n, router]);
 
     const onChangeDate = useCallback((event: any, selectedDate?: Date) => {
         const currentDate = selectedDate || date;
@@ -250,7 +221,7 @@ export default function AddEntry() {
             >
                 <View style={styles.categoryContainer}>
                     <Text style={styles.headerTitle}>{editingId ? i18n.t('addEntry.editTitle') : i18n.t('addEntry.selectCategory')}</Text>
-                    {['Alcohol', 'Tobacco', 'Weed', 'Food', 'Other'].map((cat) => (
+                    {['Food', 'Transportation', 'Shopping', 'Entertainment', 'Other'].map((cat) => (
                         <TouchableOpacity
                             key={cat}
                             style={styles.categoryButton}
@@ -329,19 +300,7 @@ export default function AddEntry() {
                         />
                     </View>
 
-                    {labels.amount && (
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>{labels.amount}</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="0,0"
-                                placeholderTextColor={Colors.dark.textSecondary}
-                                keyboardType="decimal-pad"
-                                value={grams}
-                                onChangeText={setGrams}
-                            />
-                        </View>
-                    )}
+
 
                     <View style={styles.formGroup}>
                         <Text style={styles.label}>{labels.type}</Text>
@@ -354,18 +313,16 @@ export default function AddEntry() {
                         />
                     </View>
 
-                    {(category === 'Weed' || category === 'Food') && (
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>{i18n.t('addEntry.source')}</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="e.g. Store, Friend, etc."
-                                placeholderTextColor={Colors.dark.textSecondary}
-                                value={source}
-                                onChangeText={setSource}
-                            />
-                        </View>
-                    )}
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>{i18n.t('addEntry.source')}</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g. Store, Friend, etc."
+                            placeholderTextColor={Colors.dark.textSecondary}
+                            value={source}
+                            onChangeText={setSource}
+                        />
+                    </View>
 
                     <View style={styles.formGroup}>
                         <Text style={styles.label}>{i18n.t('addEntry.notes')}</Text>

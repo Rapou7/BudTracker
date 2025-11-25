@@ -60,7 +60,7 @@ export default function Dashboard() {
   const handleQuickAdd = (favorite: Entry) => {
     Alert.alert(
       i18n.t('dashboard.quickAdd'),
-      `${i18n.t('dashboard.quickAddConfirm')} ${favorite.amountSpent.toFixed(2).replace('.', ',')} € (${favorite.grams}g)?`,
+      `${i18n.t('dashboard.quickAddConfirm')} ${favorite.amountSpent.toFixed(2).replace('.', ',')} €?`,
       [
         { text: i18n.t('common.cancel'), style: 'cancel' },
         {
@@ -104,7 +104,7 @@ export default function Dashboard() {
   };
 
   const totalSpent = entries.reduce((sum, e) => sum + e.amountSpent, 0);
-  const totalGrams = entries.filter(e => e.category === 'Weed').reduce((sum, e) => sum + e.grams, 0);
+  const totalEntries = entries.length;
 
   const now = new Date();
   const firstEntryDate = entries.length > 0 ? new Date(entries[entries.length - 1].date) : now;
@@ -124,8 +124,8 @@ export default function Dashboard() {
             <Text style={[styles.cardValue, { color: primaryColor }]}>{totalSpent.toFixed(2).replace('.', ',')} €</Text>
           </View>
           <View style={styles.card}>
-            <Text style={styles.cardLabel}>{i18n.t('dashboard.totalGrams')}</Text>
-            <Text style={[styles.cardValue, { color: primaryColor }]}>{totalGrams.toFixed(1).replace('.', ',')}g</Text>
+            <Text style={styles.cardLabel}>{i18n.t('dashboard.totalEntries')}</Text>
+            <Text style={[styles.cardValue, { color: primaryColor }]}>{totalEntries}</Text>
           </View>
         </View>
       </StaggeredFadeInView>
