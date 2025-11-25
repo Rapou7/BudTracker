@@ -107,7 +107,7 @@ export default function HistoryItem({ item, onDelete, onPress }: HistoryItemProp
                     onPress={onPress}
                     style={{ borderRadius: 12 }}
                 >
-                    <View>
+                    <View style={{ backgroundColor: Colors.dark.surface }}>
                         <View style={[styles.item, item.notes ? { paddingBottom: 4 } : null]}>
                             <View>
                                 <Text style={[styles.itemCategory, { color: primaryColor }]}>{i18n.t(`categories.${item.category || 'Weed'}`)}</Text>

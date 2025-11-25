@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableHighlight, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, Modal, Platform, ScrollView, StyleSheet, Text, TouchableHighlight, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { CategoryColors, Colors } from '../constants/Colors';
 import { useLanguage } from '../context/LanguageContext';
@@ -100,7 +100,7 @@ function SwipeableEntryItem({ entry, onDelete, onPress }: SwipeableEntryItemProp
                     opacity,
                     maxHeight: rowHeight.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0, 100], // Approximate max height
+                        outputRange: [0, 100],
                     }),
                     transform: [{ scaleY: rowHeight }]
                 }
@@ -117,7 +117,7 @@ function SwipeableEntryItem({ entry, onDelete, onPress }: SwipeableEntryItemProp
                     activeOpacity={0.6}
                     underlayColor="#333333"
                     onPress={onPress}
-                    style={{ borderRadius: 12 }}
+                    style={styles.touchableHighlight}
                 >
                     <View style={styles.entryItem}>
                         <View style={styles.entryContent}>
@@ -199,9 +199,7 @@ export default function DayDetailModal({ visible, date, entries, position, onClo
     };
 
     const handleDeleteEntry = (id: string) => {
-        // Optimistically update local state
         setLocalEntries(prev => prev.filter(e => e.id !== id));
-        // Propagate to parent
         onDeleteEntry(id);
     };
 
@@ -221,11 +219,8 @@ export default function DayDetailModal({ visible, date, entries, position, onClo
 
         if (language === 'es') {
             return dateString.split(' ').map((word, index) => {
-                // Always capitalize first word
                 if (index === 0) return word.charAt(0).toUpperCase() + word.slice(1);
-                // Don't capitalize connectors
                 if (['de', 'del', 'el', 'la', 'en'].includes(word.toLowerCase())) return word.toLowerCase();
-                // Capitalize other words (like Month names)
                 return word.charAt(0).toUpperCase() + word.slice(1);
             }).join(' ');
         }
@@ -302,20 +297,24 @@ export default function DayDetailModal({ visible, date, entries, position, onClo
                             </View>
 
                             <Text style={styles.listTitle}>{i18n.t('dashboard.recentHistory')} ({localEntries.length})</Text>
-                            <ScrollView
-                                style={styles.entriesList}
-                                showsVerticalScrollIndicator={true}
-                                nestedScrollEnabled={true}
-                            >
-                                {localEntries.map((entry) => (
-                                    <SwipeableEntryItem
-                                        key={entry.id}
-                                        entry={entry}
-                                        onDelete={handleDeleteEntry}
-                                        onPress={() => onEditEntry(entry)}
-                                    />
-                                ))}
-                            </ScrollView>
+                            <GestureHandlerRootView style={styles.gestureHandlerContainer}>
+                                <ScrollView
+                                    style={styles.entriesList}
+                                    showsVerticalScrollIndicator={true}
+                                    nestedScrollEnabled={true}
+                                    scrollEventThrottle={16}
+                                    bounces={Platform.OS === 'ios'}
+                                >
+                                    {localEntries.map((entry) => (
+                                        <SwipeableEntryItem
+                                            key={entry.id}
+                                            entry={entry}
+                                            onDelete={handleDeleteEntry}
+                                            onPress={() => onEditEntry(entry)}
+                                        />
+                                    ))}
+                                </ScrollView>
+                            </GestureHandlerRootView>
                         </>
                     )}
                 </Animated.View>
@@ -392,6 +391,9 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 12,
     },
+    gestureHandlerContainer: {
+        maxHeight: 300,
+    },
     entriesList: {
         maxHeight: 300,
     },
@@ -403,6 +405,9 @@ const styles = StyleSheet.create({
     },
     swipeableContainer: {
         backgroundColor: '#dd2c00',
+    },
+    touchableHighlight: {
+        borderRadius: 12,
     },
     entryItem: {
         flexDirection: 'row',
