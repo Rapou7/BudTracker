@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, FlatList, Pressable, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DayDetailModal from '../../components/DayDetailModal';
 import Heatmap from '../../components/Heatmap';
 import HistoryItem from '../../components/HistoryItem';
@@ -20,6 +20,11 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedDayEntries, setSelectedDayEntries] = useState<Entry[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<{ x: number; y: number } | null>(null);
+
+  // Average spend display control
+  const [showWeekly, setShowWeekly] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   // Pagination control
   const [displayedCount, setDisplayedCount] = useState(25);
@@ -111,6 +116,42 @@ export default function Dashboard() {
   const monthsDiff = (now.getFullYear() - firstEntryDate.getFullYear()) * 12 + (now.getMonth() - firstEntryDate.getMonth()) + 1;
   const avgMonthlySpend = totalSpent / (monthsDiff || 1);
 
+  const weeksDiff = Math.max(1, Math.ceil((now.getTime() - firstEntryDate.getTime()) / (7 * 24 * 60 * 60 * 1000)));
+  const avgWeeklySpend = totalSpent / weeksDiff;
+
+  const toggleAvgSpend = () => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 0.95,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    setTimeout(() => {
+      setShowWeekly(prev => !prev);
+    }, 150);
+  };
+
   const headerComponent = (
     <View style={styles.headerContainer}>
       <StaggeredFadeInView key={`greet-${viewKey}`} delay={0}>
@@ -131,10 +172,24 @@ export default function Dashboard() {
       </StaggeredFadeInView>
 
       <StaggeredFadeInView key={`avg-${viewKey}`} delay={100}>
-        <View style={styles.fullCard}>
-          <Text style={styles.cardLabel}>{i18n.t('dashboard.avgMonthlySpend')}</Text>
-          <Text style={[styles.cardValue, { color: primaryColor }]}>{avgMonthlySpend.toFixed(2).replace('.', ',')} €</Text>
-        </View>
+        <Pressable onPress={toggleAvgSpend}>
+          <Animated.View style={[
+            styles.fullCard,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }]
+            }
+          ]}>
+            <Text style={styles.cardLabel}>
+              {showWeekly ? i18n.t('dashboard.avgWeeklySpend') : i18n.t('dashboard.avgMonthlySpend')}
+            </Text>
+            <Text style={[styles.cardValue, { color: primaryColor }]}>
+              {showWeekly
+                ? avgWeeklySpend.toFixed(2).replace('.', ',')
+                : avgMonthlySpend.toFixed(2).replace('.', ',')} €
+            </Text>
+          </Animated.View>
+        </Pressable>
       </StaggeredFadeInView>
 
       {favorites.length > 0 && (

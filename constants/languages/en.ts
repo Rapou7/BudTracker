@@ -34,6 +34,7 @@ export const en = {
         totalSpent: 'Total Spent',
         totalGrams: 'Total Grams',
         avgMonthlySpend: 'Avg Monthly Spend',
+        avgWeeklySpend: 'Avg Weekly Spend',
         favorites: 'Favorites',
         activityCalendar: 'Heatmap',
         recentHistory: 'Recent History',
